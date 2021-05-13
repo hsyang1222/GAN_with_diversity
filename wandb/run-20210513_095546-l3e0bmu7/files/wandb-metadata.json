@@ -1,0 +1,26 @@
+{
+    "os": "Linux-4.15.0-20-generic-x86_64-with-glibc2.27",
+    "python": "3.9.4",
+    "heartbeatAt": "2021-05-13T09:55:51.448989",
+    "startedAt": "2021-05-13T09:55:46.924768",
+    "docker": null,
+    "gpu": "TITAN Xp",
+    "gpu_count": 4,
+    "cpu_count": 48,
+    "cuda": null,
+    "args": [
+        "-f",
+        "/root/.local/share/jupyter/runtime/kernel-0a7720f2-bedf-4434-b805-f910496f3aa9.json"
+    ],
+    "state": "running",
+    "program": "<python with no main file>",
+    "git": {
+        "remote": "https://github.com/hsyang1222/GAN_with_diversity.git",
+        "commit": null
+    },
+    "email": "hsyang1222@snu.ac.kr",
+    "root": "/home/hsyang/workspace/20210306_gan/GAN_with_diversity",
+    "host": "7d2cdef3104f",
+    "username": "root",
+    "executable": "/opt/conda/envs/stylegan2/bin/python"
+}

@@ -1,0 +1,65 @@
+2021-05-13 09:59:45,525 INFO    MainThread:5725 [wandb_setup.py:_flush():69] setting env: {}
+2021-05-13 09:59:45,525 INFO    MainThread:5725 [wandb_setup.py:_flush():69] setting login settings: {}
+2021-05-13 09:59:45,526 INFO    MainThread:5725 [wandb_init.py:_log_setup():336] Logging user logs to /home/hsyang/workspace/20210306_gan/GAN_with_diversity/wandb/run-20210513_095945-20jykzxc/logs/debug.log
+2021-05-13 09:59:45,526 INFO    MainThread:5725 [wandb_init.py:_log_setup():337] Logging internal logs to /home/hsyang/workspace/20210306_gan/GAN_with_diversity/wandb/run-20210513_095945-20jykzxc/logs/debug-internal.log
+2021-05-13 09:59:45,526 INFO    MainThread:5725 [wandb_init.py:init():369] calling init triggers
+2021-05-13 09:59:45,526 INFO    MainThread:5725 [wandb_init.py:init():374] wandb.init called with sweep_config: {}
+config: {}
+2021-05-13 09:59:45,526 INFO    MainThread:5725 [wandb_init.py:init():418] starting backend
+2021-05-13 09:59:45,526 INFO    MainThread:5725 [backend.py:_multiprocessing_setup():69] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2021-05-13 09:59:45,579 INFO    MainThread:5725 [backend.py:ensure_launched():123] starting backend process...
+2021-05-13 09:59:45,627 INFO    MainThread:5725 [backend.py:ensure_launched():127] started backend process with pid: 5806
+2021-05-13 09:59:45,630 INFO    MainThread:5725 [wandb_init.py:init():423] backend started and connected
+2021-05-13 09:59:45,632 INFO    MainThread:5725 [wandb_init.py:init():465] updated telemetry
+2021-05-13 09:59:45,633 INFO    MainThread:5725 [wandb_init.py:init():484] communicating current version
+2021-05-13 09:59:46,486 INFO    MainThread:5725 [wandb_init.py:init():489] got version response upgrade_message: "wandb version 0.10.30 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2021-05-13 09:59:46,487 INFO    MainThread:5725 [wandb_init.py:init():497] communicating run to backend with 30 second timeout
+2021-05-13 09:59:46,734 INFO    MainThread:5725 [wandb_init.py:init():522] starting run threads in backend
+2021-05-13 09:59:48,894 INFO    MainThread:5725 [wandb_run.py:_console_start():1554] atexit reg
+2021-05-13 09:59:48,895 INFO    MainThread:5725 [wandb_run.py:_redirect():1401] redirect: SettingsConsole.REDIRECT
+2021-05-13 09:59:48,895 INFO    MainThread:5725 [wandb_run.py:_redirect():1406] Redirecting console.
+2021-05-13 09:59:48,898 INFO    MainThread:5725 [wandb_run.py:_redirect():1468] Redirects installed.
+2021-05-13 09:59:48,898 INFO    MainThread:5725 [wandb_init.py:init():546] run started, returning control to user process
+2021-05-13 09:59:48,909 INFO    MainThread:5725 [wandb_setup.py:_flush():69] setting env: {}
+2021-05-13 09:59:48,909 INFO    MainThread:5725 [wandb_setup.py:_flush():69] setting login settings: {}
+2021-05-13 09:59:48,909 INFO    MainThread:5725 [wandb_init.py:_log_setup():336] Logging user logs to /home/hsyang/workspace/20210306_gan/GAN_with_diversity/wandb/run-20210513_095948-29qvsq7u/logs/debug.log
+2021-05-13 09:59:48,909 INFO    MainThread:5725 [wandb_init.py:_log_setup():337] Logging internal logs to /home/hsyang/workspace/20210306_gan/GAN_with_diversity/wandb/run-20210513_095948-29qvsq7u/logs/debug-internal.log
+2021-05-13 09:59:48,909 INFO    MainThread:5725 [wandb_init.py:init():369] calling init triggers
+2021-05-13 09:59:48,909 INFO    MainThread:5725 [wandb_init.py:init():374] wandb.init called with sweep_config: {}
+config: {}
+2021-05-13 09:59:48,909 INFO    MainThread:5725 [wandb_init.py:init():415] wandb.init() called when a run is still active
+2021-05-13 10:00:08,333 INFO    MainThread:5725 [wandb_run.py:_atexit_cleanup():1524] got exitcode: 255
+2021-05-13 10:00:08,334 INFO    MainThread:5725 [wandb_run.py:_restore():1496] restore
+2021-05-13 10:00:10,601 INFO    MainThread:5725 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 1
+}
+pusher_stats {
+  uploaded_bytes: 813
+  total_bytes: 813
+}
+
+2021-05-13 10:00:10,772 INFO    MainThread:5725 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 5
+}
+pusher_stats {
+  uploaded_bytes: 813
+  total_bytes: 9708
+}
+
+2021-05-13 10:00:11,179 INFO    MainThread:5725 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 7857
+  total_bytes: 9725
+}
+
+2021-05-13 10:00:11,281 INFO    MainThread:5725 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 9723
+  total_bytes: 9725
+}
+

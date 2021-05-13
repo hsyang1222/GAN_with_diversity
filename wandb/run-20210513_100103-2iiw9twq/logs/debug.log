@@ -1,0 +1,88 @@
+2021-05-13 10:01:03,351 INFO    MainThread:6165 [wandb_setup.py:_flush():69] setting env: {}
+2021-05-13 10:01:03,356 INFO    MainThread:6165 [wandb_setup.py:_flush():69] setting login settings: {}
+2021-05-13 10:01:03,356 INFO    MainThread:6165 [wandb_init.py:_log_setup():336] Logging user logs to /home/hsyang/workspace/20210306_gan/GAN_with_diversity/wandb/run-20210513_100103-2iiw9twq/logs/debug.log
+2021-05-13 10:01:03,357 INFO    MainThread:6165 [wandb_init.py:_log_setup():337] Logging internal logs to /home/hsyang/workspace/20210306_gan/GAN_with_diversity/wandb/run-20210513_100103-2iiw9twq/logs/debug-internal.log
+2021-05-13 10:01:03,357 INFO    MainThread:6165 [wandb_init.py:init():369] calling init triggers
+2021-05-13 10:01:03,357 INFO    MainThread:6165 [wandb_init.py:init():374] wandb.init called with sweep_config: {}
+config: {}
+2021-05-13 10:01:03,357 INFO    MainThread:6165 [wandb_init.py:init():415] wandb.init() called when a run is still active
+2021-05-13 11:14:56,307 INFO    MainThread:6165 [wandb_run.py:_atexit_cleanup():1524] got exitcode: 0
+2021-05-13 11:14:56,309 INFO    MainThread:6165 [wandb_run.py:_restore():1496] restore
+2021-05-13 11:14:58,571 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 1
+}
+pusher_stats {
+  uploaded_bytes: 813
+  total_bytes: 813
+}
+
+2021-05-13 11:14:59,257 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 813
+  total_bytes: 10206
+}
+
+2021-05-13 11:14:59,645 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 10206
+  total_bytes: 10206
+}
+
+2021-05-13 11:14:59,748 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 10206
+  total_bytes: 10206
+}
+
+2021-05-13 11:14:59,850 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 10206
+  total_bytes: 10206
+}
+
+2021-05-13 11:14:59,952 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 10206
+  total_bytes: 10206
+}
+
+2021-05-13 11:15:00,055 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 10206
+  total_bytes: 10206
+}
+
+2021-05-13 11:15:00,157 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 10206
+  total_bytes: 10206
+}
+
+2021-05-13 11:15:00,260 INFO    MainThread:6165 [wandb_run.py:_wait_for_finish():1646] got exit ret: done: true
+exit_result {
+}
+file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 10206
+  total_bytes: 10206
+}
+
+2021-05-13 11:15:01,372 INFO    MainThread:6165 [wandb_run.py:_show_summary():1801] rendering summary
+2021-05-13 11:15:01,373 INFO    MainThread:6165 [wandb_run.py:_show_history():1839] rendering history
+2021-05-13 11:15:01,374 INFO    MainThread:6165 [wandb_run.py:_show_files():1868] logging synced files

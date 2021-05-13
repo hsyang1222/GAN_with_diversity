@@ -1,0 +1,157 @@
+{'dataset': 'cifar10', 'dataroot': '../../dataset', 'workers': 2, 'batchSize': 64, 'imageSize': 64, 'nz': 100, 'ngf': 64, 'ndf': 64, 'niter': 25, 'lr': 0.0002, 'beta1': 0.5, 'cuda': True, 'dry_run': False, 'ngpu': 1, 'netG': '', 'netD': '', 'netE': '', 'netZ': '', 'manualSeed': None, 'classes': None, 'outf': 'result_image'}
+Random Seed:  3661
+Generator(
+  (main): Sequential(
+    (0): ConvTranspose2d(100, 512, kernel_size=(4, 4), stride=(1, 1), bias=False)
+    (1): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): ReLU(inplace=True)
+    (3): ConvTranspose2d(512, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (4): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (5): ReLU(inplace=True)
+    (6): ConvTranspose2d(256, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (7): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (8): ReLU(inplace=True)
+    (9): ConvTranspose2d(128, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (10): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (11): ReLU(inplace=True)
+    (12): ConvTranspose2d(64, 3, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (13): Tanh()
+  )
+)
+Discriminator(
+  (main): Sequential(
+    (0): Conv2d(3, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (1): LeakyReLU(negative_slope=0.2, inplace=True)
+    (2): Conv2d(64, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (3): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (4): LeakyReLU(negative_slope=0.2, inplace=True)
+    (5): Conv2d(128, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (6): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (7): LeakyReLU(negative_slope=0.2, inplace=True)
+    (8): Conv2d(256, 512, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (9): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (10): LeakyReLU(negative_slope=0.2, inplace=True)
+    (11): Conv2d(512, 1, kernel_size=(4, 4), stride=(1, 1), bias=False)
+    (12): Sigmoid()
+  )
+)
+Encoder(
+  (main): Sequential(
+    (0): Conv2d(3, 64, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (1): ReLU(inplace=True)
+    (2): Conv2d(64, 128, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (3): BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (4): ReLU(inplace=True)
+    (5): Conv2d(128, 256, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (6): BatchNorm2d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (7): ReLU(inplace=True)
+    (8): Conv2d(256, 512, kernel_size=(4, 4), stride=(2, 2), padding=(1, 1), bias=False)
+    (9): BatchNorm2d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (10): ReLU(inplace=True)
+    (11): Conv2d(512, 100, kernel_size=(4, 4), stride=(1, 1), bias=False)
+    (12): Tanh()
+  )
+)
+Zenerator(
+  (main): Sequential(
+    (0): Linear(in_features=100, out_features=100, bias=True)
+    (1): BatchNorm1d(100, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): ReLU(inplace=True)
+    (3): Linear(in_features=100, out_features=100, bias=True)
+    (4): BatchNorm1d(100, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (5): ReLU(inplace=True)
+    (6): Linear(in_features=100, out_features=100, bias=True)
+    (7): BatchNorm1d(100, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (8): ReLU(inplace=True)
+  )
+)
+[0/25][781/782] Loss: 46.7918, FID:253.3430
+[1/25][781/782] Loss: 29.3534, FID:246.5936
+[2/25][781/782] Loss: 23.7447, FID:218.8250
+[3/25][781/782] Loss: 20.9528, FID:197.4785
+[4/25][781/782] Loss: 19.0062, FID:179.9637
+[5/25][781/782] Loss: 17.6003, FID:165.8779
+[6/25][781/782] Loss: 16.5986, FID:153.8896
+[7/25][781/782] Loss: 15.7006, FID:143.7831
+[8/25][781/782] Loss: 14.9794, FID:136.0798
+[9/25][781/782] Loss: 14.4880, FID:129.2463
+[10/25][781/782] Loss: 13.9963, FID:123.1117
+[11/25][781/782] Loss: 13.7002, FID:118.1320
+[12/25][781/782] Loss: 13.3156, FID:113.2777
+[13/25][781/782] Loss: 13.8013, FID:110.2724
+early stop
+[0/25][781/782] Loss_D: 0.3575 Loss_G: 4.7449 D(x): 0.8204 D(G(Z(z))): 0.1088 / 0.0170, FID:232.5387
+[1/25][781/782] Loss_D: 0.8104 Loss_G: 3.0592 D(x): 0.6913 D(G(Z(z))): 0.2670 / 0.0991, FID:198.0222
+[2/25][781/782] Loss_D: 0.4910 Loss_G: 3.0168 D(x): 0.7769 D(G(Z(z))): 0.1601 / 0.0648, FID:173.5589
+[3/25][781/782] Loss_D: 0.4482 Loss_G: 5.4873 D(x): 0.8635 D(G(Z(z))): 0.2183 / 0.0051, FID:139.8304
+[4/25][781/782] Loss_D: 0.2658 Loss_G: 5.4161 D(x): 0.9811 D(G(Z(z))): 0.1951 / 0.0076, FID:121.1528
+[5/25][781/782] Loss_D: 0.1816 Loss_G: 4.6728 D(x): 0.9483 D(G(Z(z))): 0.1063 / 0.0171, FID:108.4636
+[6/25][781/782] Loss_D: 0.1054 Loss_G: 4.2348 D(x): 0.9526 D(G(Z(z))): 0.0525 / 0.0224, FID:109.5028
+[7/25][781/782] Loss_D: 0.6790 Loss_G: 1.5636 D(x): 0.6377 D(G(Z(z))): 0.0835 / 0.3181, FID:97.7406
+[8/25][781/782] Loss_D: 0.5126 Loss_G: 8.4291 D(x): 0.9908 D(G(Z(z))): 0.3476 / 0.0008, FID:104.9482
+[9/25][781/782] Loss_D: 0.0502 Loss_G: 5.6834 D(x): 0.9806 D(G(Z(z))): 0.0293 / 0.0056, FID:98.7588
+[10/25][781/782] Loss_D: 0.2777 Loss_G: 3.3515 D(x): 0.8142 D(G(Z(z))): 0.0481 / 0.0859, FID:96.1886
+[11/25][781/782] Loss_D: 0.6709 Loss_G: 5.2194 D(x): 0.9687 D(G(Z(z))): 0.4080 / 0.0100, FID:95.9120
+[12/25][781/782] Loss_D: 0.1847 Loss_G: 7.8442 D(x): 0.8662 D(G(Z(z))): 0.0122 / 0.0042, FID:91.3182
+[13/25][781/782] Loss_D: 0.2262 Loss_G: 3.8411 D(x): 0.8683 D(G(Z(z))): 0.0646 / 0.0324, FID:87.0230
+[14/25][781/782] Loss_D: 0.1164 Loss_G: 4.3763 D(x): 0.9354 D(G(Z(z))): 0.0423 / 0.0230, FID:88.4751
+[15/25][781/782] Loss_D: 0.2742 Loss_G: 3.8988 D(x): 0.8414 D(G(Z(z))): 0.0630 / 0.0268, FID:84.1361
+[16/25][781/782] Loss_D: 0.8210 Loss_G: 2.5502 D(x): 0.6423 D(G(Z(z))): 0.2398 / 0.1061, FID:83.9581
+[17/25][781/782] Loss_D: 0.7247 Loss_G: 2.7393 D(x): 0.6545 D(G(Z(z))): 0.1439 / 0.1070, FID:81.4942
+[18/25][781/782] Loss_D: 0.4561 Loss_G: 3.4300 D(x): 0.7376 D(G(Z(z))): 0.0492 / 0.0418, FID:82.6270
+[19/25][781/782] Loss_D: 0.3812 Loss_G: 2.5024 D(x): 0.7992 D(G(Z(z))): 0.0844 / 0.1274, FID:80.3939
+[20/25][781/782] Loss_D: 2.3224 Loss_G: 0.0233 D(x): 0.2366 D(G(Z(z))): 0.0682 / 0.9772, FID:77.9315
+[21/25][781/782] Loss_D: 0.3203 Loss_G: 3.7961 D(x): 0.9022 D(G(Z(z))): 0.1310 / 0.0316, FID:80.0425
+[22/25][781/782] Loss_D: 0.3186 Loss_G: 2.5120 D(x): 0.9001 D(G(Z(z))): 0.1481 / 0.1795, FID:79.4254
+[23/25][781/782] Loss_D: 0.3252 Loss_G: 4.0993 D(x): 0.8724 D(G(Z(z))): 0.1558 / 0.0301, FID:81.4116
+[24/25][781/782] Loss_D: 4.5640 Loss_G: 0.4671 D(x): 0.0277 D(G(Z(z))): 0.0012 / 0.7354, FID:77.5042
+[25/25][781/782] Loss_D: 0.0990 Loss_G: 5.3419 D(x): 0.9811 D(G(Z(z))): 0.0694 / 0.0065, FID:78.2843
+[26/25][781/782] Loss_D: 0.0024 Loss_G: 7.3106 D(x): 0.9989 D(G(Z(z))): 0.0013 / 0.0011, FID:77.7575
+[27/25][781/782] Loss_D: 0.0464 Loss_G: 5.1171 D(x): 0.9995 D(G(Z(z))): 0.0439 / 0.0088, FID:80.6455
+[28/25][781/782] Loss_D: 0.3697 Loss_G: 2.7941 D(x): 0.7663 D(G(Z(z))): 0.0737 / 0.0914, FID:76.2771
+[29/25][781/782] Loss_D: 0.4148 Loss_G: 2.9726 D(x): 0.7557 D(G(Z(z))): 0.0218 / 0.0790, FID:78.7134
+[30/25][781/782] Loss_D: 0.4275 Loss_G: 3.6911 D(x): 0.8587 D(G(Z(z))): 0.1915 / 0.0313, FID:74.9853
+[31/25][781/782] Loss_D: 0.2229 Loss_G: 4.1893 D(x): 0.9647 D(G(Z(z))): 0.1552 / 0.0212, FID:79.9799
+[32/25][781/782] Loss_D: 0.4074 Loss_G: 4.9666 D(x): 0.7997 D(G(Z(z))): 0.1184 / 0.0152, FID:72.6605
+[33/25][781/782] Loss_D: 3.3155 Loss_G: 3.0966 D(x): 0.1102 D(G(Z(z))): 0.0024 / 0.1799, FID:76.0523
+[34/25][781/782] Loss_D: 0.2633 Loss_G: 4.4253 D(x): 0.9360 D(G(Z(z))): 0.1695 / 0.0177, FID:79.1889
+[35/25][781/782] Loss_D: 0.3663 Loss_G: 2.9239 D(x): 0.8361 D(G(Z(z))): 0.1231 / 0.0999, FID:78.3008
+[36/25][781/782] Loss_D: 0.0790 Loss_G: 5.2834 D(x): 0.9903 D(G(Z(z))): 0.0634 / 0.0081, FID:74.3656
+[37/25][781/782] Loss_D: 0.5138 Loss_G: 2.6332 D(x): 0.7287 D(G(Z(z))): 0.1032 / 0.0906, FID:79.3039
+[38/25][781/782] Loss_D: 0.3405 Loss_G: 5.1374 D(x): 0.7630 D(G(Z(z))): 0.0017 / 0.0105, FID:76.4244
+[39/25][781/782] Loss_D: 0.0657 Loss_G: 4.8222 D(x): 0.9577 D(G(Z(z))): 0.0206 / 0.0152, FID:74.2840
+[40/25][781/782] Loss_D: 0.0234 Loss_G: 5.3583 D(x): 0.9853 D(G(Z(z))): 0.0084 / 0.0109, FID:76.4248
+[41/25][781/782] Loss_D: 0.1017 Loss_G: 5.2927 D(x): 0.9230 D(G(Z(z))): 0.0081 / 0.0088, FID:76.6339
+[42/25][781/782] Loss_D: 0.6399 Loss_G: 2.0689 D(x): 0.7143 D(G(Z(z))): 0.0374 / 0.2036, FID:75.1256
+[43/25][781/782] Loss_D: 0.0299 Loss_G: 7.3376 D(x): 0.9724 D(G(Z(z))): 0.0006 / 0.0009, FID:73.1750
+[44/25][781/782] Loss_D: 0.2034 Loss_G: 8.0759 D(x): 0.9962 D(G(Z(z))): 0.1686 / 0.0006, FID:73.2877
+[45/25][781/782] Loss_D: 0.1845 Loss_G: 4.5163 D(x): 0.9586 D(G(Z(z))): 0.1198 / 0.0162, FID:74.3113
+[46/25][781/782] Loss_D: 0.0568 Loss_G: 8.0928 D(x): 0.9478 D(G(Z(z))): 0.0003 / 0.0005, FID:70.4466
+[47/25][781/782] Loss_D: 0.5251 Loss_G: 1.2717 D(x): 0.6722 D(G(Z(z))): 0.0119 / 0.3757, FID:71.8818
+[48/25][781/782] Loss_D: 0.0537 Loss_G: 4.7018 D(x): 0.9814 D(G(Z(z))): 0.0314 / 0.0134, FID:76.6899
+[49/25][781/782] Loss_D: 0.7235 Loss_G: 2.6775 D(x): 0.6529 D(G(Z(z))): 0.1657 / 0.0956, FID:71.8033
+[50/25][781/782] Loss_D: 0.1939 Loss_G: 5.2022 D(x): 0.9745 D(G(Z(z))): 0.1368 / 0.0075, FID:70.1299
+[51/25][781/782] Loss_D: 0.3707 Loss_G: 4.8219 D(x): 0.9109 D(G(Z(z))): 0.1786 / 0.0168, FID:68.4696
+[52/25][781/782] Loss_D: 0.9303 Loss_G: 9.7510 D(x): 0.9041 D(G(Z(z))): 0.4538 / 0.0003, FID:71.6938
+[53/25][781/782] Loss_D: 0.0508 Loss_G: 6.7288 D(x): 0.9601 D(G(Z(z))): 0.0025 / 0.0014, FID:73.0440
+[54/25][781/782] Loss_D: 0.0001 Loss_G: 22.7344 D(x): 0.9999 D(G(Z(z))): 0.0000 / 0.0000, FID:583.9198
+[55/25][781/782] Loss_D: 0.0018 Loss_G: 44.4003 D(x): 0.9999 D(G(Z(z))): 0.0017 / 0.0005, FID:384.3859
+[56/25][781/782] Loss_D: 48.6976 Loss_G: 91.0792 D(x): 0.0000 D(G(Z(z))): 0.0000 / 0.0000, FID:295.1950
+[57/25][781/782] Loss_D: 49.4684 Loss_G: 92.3141 D(x): 0.0000 D(G(Z(z))): 0.0000 / 0.0000, FID:389.1567
+[58/25][781/782] Loss_D: 43.6288 Loss_G: 89.9393 D(x): 0.0000 D(G(Z(z))): 0.0000 / 0.0000, FID:388.8077
+[59/25][781/782] Loss_D: 49.7896 Loss_G: 91.7368 D(x): 0.0000 D(G(Z(z))): 0.0000 / 0.0000, FID:388.7592
+[60/25][781/782] Loss_D: 42.3733 Loss_G: 85.6926 D(x): 0.0000 D(G(Z(z))): 0.0000 / 0.0000, FID:388.4761
+[61/25][781/782] Loss_D: 0.5756 Loss_G: 9.1172 D(x): 0.7315 D(G(Z(z))): 0.0054 / 0.0010, FID:271.3084
+[62/25][781/782] Loss_D: 0.0678 Loss_G: 4.7167 D(x): 0.9760 D(G(Z(z))): 0.0409 / 0.0131, FID:162.0520
+[63/25][781/782] Loss_D: 0.1962 Loss_G: 4.4884 D(x): 0.8635 D(G(Z(z))): 0.0138 / 0.0161, FID:138.9222
+[64/25][781/782] Loss_D: 0.0247 Loss_G: 5.3032 D(x): 0.9914 D(G(Z(z))): 0.0157 / 0.0080, FID:124.8010
+[65/25][781/782] Loss_D: 0.0631 Loss_G: 4.9845 D(x): 0.9816 D(G(Z(z))): 0.0416 / 0.0094, FID:105.6913
+[66/25][781/782] Loss_D: 6.5331 Loss_G: 8.3802 D(x): 0.0490 D(G(Z(z))): 0.0000 / 0.0042, FID:117.5709
+[67/25][781/782] Loss_D: 0.7499 Loss_G: 12.2391 D(x): 0.6071 D(G(Z(z))): 0.0001 / 0.0011, FID:119.5717
+[68/25][781/782] Loss_D: 0.0243 Loss_G: 8.4455 D(x): 0.9773 D(G(Z(z))): 0.0007 / 0.0006, FID:119.3720
+[69/25][781/782] Loss_D: 0.6575 Loss_G: 2.9806 D(x): 0.7210 D(G(Z(z))): 0.1267 / 0.1445, FID:109.1896
+[70/25][781/782] Loss_D: 0.2354 Loss_G: 3.7308 D(x): 0.9160 D(G(Z(z))): 0.0068 / 0.0415, FID:113.8146
+[71/25][781/782] Loss_D: 0.0447 Loss_G: 6.1276 D(x): 0.9734 D(G(Z(z))): 0.0155 / 0.0036, FID:119.3154
+[72/25][781/782] Loss_D: 0.1256 Loss_G: 5.5758 D(x): 0.9182 D(G(Z(z))): 0.0226 / 0.0201, FID:108.3807
+[73/25][781/782] Loss_D: 0.0930 Loss_G: 4.5570 D(x): 0.9334 D(G(Z(z))): 0.0107 / 0.0191, FID:113.3291
+[74/25][781/782] Loss_D: 1.3810 Loss_G: 0.7202 D(x): 0.4479 D(G(Z(z))): 0.0670 / 0.5334, FID:108.7155
