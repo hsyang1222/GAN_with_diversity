@@ -34,9 +34,13 @@ args = easydict.EasyDict({
     'ngpu':1,
     'netG':'',
     'netD':'',
+    'netE':'',
     'manualSeed':None,
     'classes':None,
     'outf':'result_image',
+    'AEiter' : 1,
+    'z_add':0.8,
+    'lambda_diverse':0.05
 })
 
 
@@ -203,12 +207,53 @@ class Discriminator(nn.Module):
 
         return output.view(-1, 1).squeeze(1)
 
+    
+class Encoder(nn.Module):
+    def __init__(self, ngpu):
+        super(Encoder, self).__init__()
+        self.ngpu = ngpu
+        self.main = nn.Sequential(
+            # input is (nc) x 64 x 64
+            nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
+            nn.ReLU(True),
+            # state size. (ndf) x 32 x 32
+            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 2),
+            nn.ReLU(True),
+            # state size. (ndf*2) x 16 x 16
+            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 4),
+            nn.ReLU(True),
+            # state size. (ndf*4) x 8 x 8
+            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 8),
+            nn.ReLU(True),
+            # state size. (ndf*8) x 4 x 4
+            nn.Conv2d(ndf * 8, 100, 4, 1, 0, bias=False),
+            nn.Tanh()
+        )
+
+    def forward(self, input):
+        if input.is_cuda and self.ngpu > 1:
+            output = nn.parallel.data_parallel(self.main, input, range(self.ngpu))
+        else:
+            output = self.main(input)
+
+        return output.view(-1, 1).squeeze(1)
+        
 
 netD = Discriminator(ngpu).to(device)
 netD.apply(weights_init)
 if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
 print(netD)
+
+netE = Encoder(ngpu).to(device)
+netE.apply(weights_init)
+if opt.netE != '':
+    netE.load_state_dict(torch.load(opt.netE))
+print(netE)
+
 
 criterion = nn.BCELoss()
 
@@ -219,6 +264,7 @@ fake_label = 0
 # setup optimizer
 optimizerD = optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+optimizerE = optim.Adam(netE.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
 
 
 train_loader = dataloader
@@ -245,17 +291,34 @@ else :
     #offload inception_model
     inception_model_score.model_to('cpu')
     
-    
-    
 import wandb
-wandb.init(project='GAN_with_diversity')
-import wandb
-wandb.init()
+wandb.init(project='GAN_with_diversity_AE', config=opt)
+config = wandb.config
 
+mse = torch.nn.MSELoss()
 
-if opt.dry_run:
-    opt.niter = 1
-
+import tqdm
+for epoch in tqdm.tqdm(range(config.AEiter), desc="AE"):
+    loss_sum = 0.
+    for i, data in enumerate(dataloader, 0):
+        real_cuda = data[0].to(device)
+        batch_size = real_cuda.size(0)
+        
+        latent_vector = netE(real_cuda)
+        latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint = netG(latent_4dim)
+        
+        mse_loss = mse(repaint, real_cuda)
+        optimizerE.zero_grad()
+        optimizerG.zero_grad()
+        mse_loss.backward()
+        optimizerE.step()
+        optimizerG.step()
+        
+        loss_sum += mse_loss.item()
+        
+del netE
+        
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
         ############################
@@ -276,7 +339,7 @@ for epoch in range(opt.niter):
         # train with fake
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
         fake = netG(noise)
-        fake2 = netG(noise + 1e-6)
+        fake2 = netG(noise + config.z_add)
         
         if epoch % 10 == 0 :
             inception_model_score.put_fake(fake.detach().cpu())
@@ -298,7 +361,7 @@ for epoch in range(opt.niter):
         
         loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
         
-        errG = criterion(output, label) - 0.1 * loss_ds
+        errG = criterion(output, label) - config.lambda_diverse * loss_ds
         errG.backward()
         D_G_z2 = output.mean().item()
         optimizerG.step()
@@ -335,10 +398,13 @@ for epoch in range(opt.niter):
                 '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
                 normalize=True)
         
-        fake2 = netG(fixed_noise + 1e-6)
+        fake2 = netG(fixed_noise + config.z_add)
         vutils.save_image(fake2.detach(),
                 '%s/fake2_samples_epoch_%03d.png' % (opt.outf, epoch),
                 normalize=True)
+        
+        fake_np = vutils.make_grid(fake.detach().cpu(), nrow=32).permute(1,2,0).numpy()
+        fake2_np = vutils.make_grid(fake2.detach().cpu(), nrow=32).permute(1,2,0).numpy()
         
         wandb.log({
             "epoch" : epoch,
@@ -354,11 +420,9 @@ for epoch in range(opt.niter):
             "recall":metrics['recall'],
             "density":metrics['density'],
             "coverage":metrics['coverage'],
-            "G(z) " : [wandb.Image(fake.detach().cpu().numpy(), caption='fixed z image')],
-            "G(z + 1e-6) " : [wandb.Image(fake2.detach().cpu().numpy(), caption='fixed z + 1e-6 image')],
+            "G(z) " : [wandb.Image(fake_np, caption='fixed z image')],
+            "G(z + div_add) " : [wandb.Image(fake2_np, caption='fixed z + 1e-6 image')],
         })
-        
-        wandb.log({"examples": [wandb.Image(numpy_array_or_pil, caption="Label")]})
 
         if opt.dry_run:
             break

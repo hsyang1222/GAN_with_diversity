@@ -1,0 +1,12 @@
+program: dcgan_with_diversity_penalty.py
+method: bayes
+metric:
+  name: fid
+  goal: minimize
+parameters:
+  z_add:
+    min: 0.000001
+    max: 1
+  lambda_diverse:
+    min: 0.0001
+    max : 1
