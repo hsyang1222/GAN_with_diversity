@@ -116,7 +116,7 @@ assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 
-device = torch.device("cuda:2" if opt.cuda else "cpu")
+device = torch.device("cuda:3" if opt.cuda else "cpu")
 ngpu = int(opt.ngpu)
 nz = int(opt.nz)
 ngf = int(opt.ngf)
@@ -341,39 +341,59 @@ for epoch in range(opt.niter):
         D_x = output.mean().item()
 
         # train with fake
-        z1_z2 = torch.rand(2, nz, device=device)
-        batch_add = torch.linspace(0,1,steps=batch_size, device=device).repeat((nz,1)).T
-        z_uniform_diff = batch_add*(z1_z2[0]-z1_z2[1]) + z1_z2[0]
-        fake_z1_z2 = netG(z1_z2.view(-1,nz,1,1))
-        loss_maximize_div = torch.mean(torch.abs(fake_z1_z2[0] - fake_z1_z2[1])) # to maximize
-        loss_maximize_div_val = loss_maximize_div.detach() / batch_size
+        z1 = torch.rand(batch_size, nz, 1, 1, device=device)
+        netD.zero_grad()
+        label.fill_(fake_label)
         
-        fake_z = netG(z_uniform_diff.view(-1,nz,1,1))
-        diff_in_fake_z = torch.mean(torch.abs(fake_z[:-1] - fake_z[1:]))
-        loss_uniform_diff = mse(diff_in_fake_z, loss_maximize_div_val) # to uniform
+        fake_z1 = netG(z1)
+        predict = netD(fake_z1.detach())
+        errD_fake = criterion(predict, label) 
+        errD_fake.backward()
+        optimizerD.step()
+        
+        netD.zero_grad()
+        z_0dot5 = (z1[1:] + z1[:-1]) / 2
+        fake_z0dot5 = netG(z_0dot5)
+        predict = netD(fake_z0dot5.detach())
+        errD_fake = criterion(predict, label[:-1]) 
+        errD_fake.backward()
+        optimizerD.step()
+        
+        D_G_z1 = predict.mean().item()
+        errD = errD_real + errD_fake
         
         if epoch % 10 == 0 :
-            inception_model_score.put_fake(fake_z.detach().cpu())
+            inception_model_score.put_fake(fake_z1.detach().cpu())
         
-        label.fill_(fake_label)
-        output = netD(fake_z.detach())
-        errD_fake = criterion(output, label)
-        errD_fake.backward()
-        D_G_z1 = output.mean().item()
-        errD = errD_real + errD_fake
-        optimizerD.step()
-
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
         netG.zero_grad()
-        label.fill_(real_label)  # fake labels are real for generator cost
-        output = netD(fake_z)
+        label.fill_(real_label)
         
-        errG = criterion(output, label) - config.lambda_diverse * loss_maximize_div + config.lambda_uniform * loss_uniform_diff
+        fake_z1 = netG(z1)
+        loss_maximize_div = torch.mean(torch.abs(fake_z1[1:] - fake_z1[:-1]))
+        predict = netD(fake_z1)
+        errG = criterion(predict, label) - config.lambda_diverse * loss_maximize_div
         errG.backward()
-        D_G_z2 = output.mean().item()
         optimizerG.step()
+        
+        D_G_z2 = predict.mean().item()
+        
+        netD.zero_grad()
+        z_0dot5 = ((z1[1:] + z1[:-1]) / 2).detach()
+        fake_z0dot5 = netG(z_0dot5)
+        predict = netD(fake_z0dot5)
+
+        diff_fakes_z1z2 = torch.mean(torch.abs(fake_z1[1:] - fake_z1[:-1]), dim=(1,2,3)).detach()
+        diff_fake_z1dot5_z1 = torch.mean(torch.abs(fake_z1[1:].detach() - fake_z0dot5), dim=(1,2,3))
+        diff_fake_z1dot5_z2 = torch.mean(torch.abs(fake_z1[:-1].detach() - fake_z0dot5), dim=(1,2,3))
+        loss_uniform_diff = mse(diff_fake_z1dot5_z1, diff_fakes_z1z2/2) + mse(diff_fake_z1dot5_z2, diff_fakes_z1z2/2)
+
+        errG = criterion(predict, label[:-1]) + config.lambda_uniform * loss_uniform_diff
+        errG.backward()
+        optimizerG.step()
+
 
     if epoch % 10 == 0:
         netG = netG.to('cpu')
@@ -397,23 +417,22 @@ for epoch in range(opt.niter):
         
         print("\t\tFID : %.4f, IS_f : %.4f, P : %.4f, R : %.4f, D : %.4f, C : %.4f" 
               %(metrics['fid'], metrics['fake_is'], metrics['precision'], metrics['recall'], metrics['density'], metrics['coverage']))
-        
        
         vutils.save_image(real_cpu,
                 '%s/real_samples.png' % opt.outf,
                 normalize=True)
-        fake = netG(fixed_noise)
-        vutils.save_image(fake.detach(),
+        fake_z1 = netG(fixed_noise)
+        vutils.save_image(fake_z1.detach(),
                 '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
                 normalize=True)
         
-        fake2 = netG(fixed_noise + config.z_add)
-        vutils.save_image(fake2.detach(),
+        fake_z2 = netG(fixed_noise + config.z_add)
+        vutils.save_image(fake_z2.detach(),
                 '%s/fake2_samples_epoch_%03d.png' % (opt.outf, epoch),
                 normalize=True)
         
-        fake_np = vutils.make_grid(fake.detach().cpu(), nrow=32).permute(1,2,0).numpy()
-        fake2_np = vutils.make_grid(fake2.detach().cpu(), nrow=32).permute(1,2,0).numpy()
+        fake_np = vutils.make_grid(fake_z1.detach().cpu(), nrow=32).permute(1,2,0).numpy()
+        fake2_np = vutils.make_grid(fake_z2.detach().cpu(), nrow=32).permute(1,2,0).numpy()
         
         wandb.log({
             "epoch" : epoch,

@@ -41,7 +41,8 @@ args = easydict.EasyDict({
     'AEiter' : 1,
     'z_add':0.8,
     'lambda_diverse':0.05,
-    'lambda_uniform' : 1
+    'lambda_uniform' : 1,
+    'try_div_chance' : 1
 })
 
 
@@ -116,7 +117,7 @@ assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 
-device = torch.device("cuda:2" if opt.cuda else "cpu")
+device = torch.device("cuda:1" if opt.cuda else "cpu")
 ngpu = int(opt.ngpu)
 nz = int(opt.nz)
 ngf = int(opt.ngf)
@@ -293,37 +294,13 @@ else :
     inception_model_score.model_to('cpu')
     
 import wandb
-wandb.init(project='GAN_with_diversit_maximize', config=opt)
+wandb.init(project='GAN_with_diversity_add_chance', config=opt)
 config = wandb.config
 
 mse = torch.nn.MSELoss()
 
-
-'''
-# skip AE
-import tqdm
-for epoch in tqdm.tqdm(range(config.AEiter), desc="AE"):
-    loss_sum = 0.
-    for i, data in enumerate(dataloader, 0):
-        real_cuda = data[0].to(device)
-        batch_size = real_cuda.size(0)
-        
-        latent_vector = netE(real_cuda)
-        latent_4dim = latent_vector.view(batch_size,nz,1,1)
-        repaint = netG(latent_4dim)
-        
-        mse_loss = mse(repaint, real_cuda)
-        optimizerE.zero_grad()
-        optimizerG.zero_grad()
-        mse_loss.backward()
-        optimizerE.step()
-        optimizerG.step()
-        
-        loss_sum += mse_loss.item()
-        
-del netE
-'''     
 for epoch in range(opt.niter):
+    under50z_list = []
     for i, data in enumerate(dataloader, 0):
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -341,22 +318,15 @@ for epoch in range(opt.niter):
         D_x = output.mean().item()
 
         # train with fake
-        z1_z2 = torch.rand(2, nz, device=device)
-        batch_add = torch.linspace(0,1,steps=batch_size, device=device).repeat((nz,1)).T
-        z_uniform_diff = batch_add*(z1_z2[0]-z1_z2[1]) + z1_z2[0]
-        fake_z1_z2 = netG(z1_z2.view(-1,nz,1,1))
-        loss_maximize_div = torch.mean(torch.abs(fake_z1_z2[0] - fake_z1_z2[1])) # to maximize
-        loss_maximize_div_val = loss_maximize_div.detach() / batch_size
-        
-        fake_z = netG(z_uniform_diff.view(-1,nz,1,1))
-        diff_in_fake_z = torch.mean(torch.abs(fake_z[:-1] - fake_z[1:]))
-        loss_uniform_diff = mse(diff_in_fake_z, loss_maximize_div_val) # to uniform
+        noise = torch.randn(batch_size, nz, 1, 1, device=device)
+        fake = netG(noise)
+        fake2 = netG(noise + config.z_add)
         
         if epoch % 10 == 0 :
-            inception_model_score.put_fake(fake_z.detach().cpu())
+            inception_model_score.put_fake(fake.detach().cpu())
         
         label.fill_(fake_label)
-        output = netD(fake_z.detach())
+        output = netD(fake.detach())
         errD_fake = criterion(output, label)
         errD_fake.backward()
         D_G_z1 = output.mean().item()
@@ -368,12 +338,53 @@ for epoch in range(opt.niter):
         ###########################
         netG.zero_grad()
         label.fill_(real_label)  # fake labels are real for generator cost
-        output = netD(fake_z)
+        output = netD(fake)
         
-        errG = criterion(output, label) - config.lambda_diverse * loss_maximize_div + config.lambda_uniform * loss_uniform_diff
+        loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
+        
+        errG = criterion(output, label) - config.lambda_diverse * loss_ds
         errG.backward()
         D_G_z2 = output.mean().item()
         optimizerG.step()
+        
+        fake = netG(noise)
+        output = netD(fake)
+        condition_under50 = output < 0.5
+        under50z_list.append( noise[condition_under50].detach().cpu() )
+        
+    try_retrain = 0
+    netD.eval()
+    num_of_first_under50 = torch.cat(under50z_list).size(0)
+    while try_retrain < config.try_div_chance :
+        under50z_set = torch.cat(under50z_list)
+        print(try_retrain, under50z_set.shape, under50z_set.size(0)/50000)
+        if under50z_set.size(0) == 0 : break
+        under50z_dataset = torch.utils.data.TensorDataset(under50z_set)
+        under50z_dataloder = torch.utils.data.DataLoader(under50z_dataset,batch_size=opt.batchSize,
+                                         shuffle=True, num_workers=int(opt.workers))
+        under50z_list = []
+        
+        for data in under50z_dataloder : 
+            z = data[0].to(device)
+            netG.zero_grad()
+            batch_size = z.size(0)
+            label = torch.full((batch_size,), real_label,
+                           dtype=z.dtype, device=device)
+   
+            fake = netG(z)
+            output = netD(fake)
+            errG = criterion(output, label)
+            errG.backward()
+            optimizerG.step()
+
+            fake = netG(z)
+            output = netD(fake)
+            condition_under50 = output < 0.5
+            under50z_list.append( z[condition_under50].detach().cpu() )
+            
+        try_retrain+=1
+    netD.train()
+    num_of_still_under50 = torch.cat(under50z_list).size(0)
 
     if epoch % 10 == 0:
         netG = netG.to('cpu')
@@ -392,8 +403,8 @@ for epoch in range(opt.niter):
         inception_model_score.model_to('cpu')
         
         
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f, DivMaxLoss : %.4f, DivUniformLoss ; %.4f'
-          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, loss_maximize_div.item(), loss_uniform_diff.item()))
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f, DivLoss : %.4f'
+          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, loss_ds.item()))
         
         print("\t\tFID : %.4f, IS_f : %.4f, P : %.4f, R : %.4f, D : %.4f, C : %.4f" 
               %(metrics['fid'], metrics['fake_is'], metrics['precision'], metrics['recall'], metrics['density'], metrics['coverage']))
@@ -422,8 +433,7 @@ for epoch in range(opt.niter):
             "D(real)": D_x,
             "D(G(z))-before D train": D_G_z1,
             "D(G(z))-after D train": D_G_z2,
-            "DivMaxLoss" : loss_maximize_div.item(),
-            "DivUniformLoss" : loss_uniform_diff.item(),
+            "DivLoss" : loss_ds.item(),
             "fid" : metrics['fid'],
             'fake_is':metrics['fake_is'],
             "precision":metrics['precision'],
@@ -431,7 +441,9 @@ for epoch in range(opt.niter):
             "density":metrics['density'],
             "coverage":metrics['coverage'],
             "G(z) " : [wandb.Image(fake_np, caption='fixed z image')],
-            "G(z + div_add) " : [wandb.Image(fake2_np, caption='fixed z + add image')],
+            "G(z + div_add) " : [wandb.Image(fake2_np, caption='fixed z + 1e-6 image')],
+            'num_of_still_under50' : num_of_still_under50,
+            'num_of_first_under50' : num_of_first_under50
         })
 
         if opt.dry_run:

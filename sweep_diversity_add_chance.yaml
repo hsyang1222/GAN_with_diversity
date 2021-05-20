@@ -1,0 +1,9 @@
+program: 20210520_dcgan_with_diversity_add_chance.py
+method: bayes
+metric:
+  name: fid
+  goal: minimize
+parameters:
+  try_div_chance:
+    min: 1
+    max: 100
