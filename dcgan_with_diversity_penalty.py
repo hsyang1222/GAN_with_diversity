@@ -38,8 +38,8 @@ args = easydict.EasyDict({
     'manualSeed':None,
     'classes':None,
     'outf':'result_image',
-    'z_add':1e-6,
-    'lambda_diverse':1e-1
+    'z_add':0,
+    'lambda_diverse':0
 })
 
 
@@ -114,7 +114,7 @@ assert dataset
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize,
                                          shuffle=True, num_workers=int(opt.workers))
 
-device = torch.device("cuda:2" if opt.cuda else "cpu")
+device = torch.device("cuda:3" if opt.cuda else "cpu")
 ngpu = int(opt.ngpu)
 nz = int(opt.nz)
 ngf = int(opt.ngf)

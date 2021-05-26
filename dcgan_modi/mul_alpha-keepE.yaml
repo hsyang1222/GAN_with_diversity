@@ -1,0 +1,9 @@
+program: 20210526_mul_alpha-keep_EncoderTrain.py
+method: bayes
+metric:
+  name: fid
+  goal: minimize
+parameters:
+  mul_alpha_param:
+    min: 0
+    max: 1
