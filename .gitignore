@@ -5,3 +5,6 @@ dcgan_modi/__pycache__/
 dcgan_modi/result_image/
 dcgan_modi/wandb/
 dcgan_modi/.ipynb_checkpoints/
+dcgan_modi/oldone/
+.git/
+*.ipynb
