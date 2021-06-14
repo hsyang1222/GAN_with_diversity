@@ -41,12 +41,12 @@ args = easydict.EasyDict({
     'classes':None,
     'outf':'result_image',
     'AEiter' : 10,
-    'z_add':0.8,
-    'lambda_diverse': 0.0,
+    'z_add':1e-6,
+    'lambda_diverse': 1,
     'lambda_uniform' : 0,
     'try_div_chance' : 0,
     'device':'cuda:1',
-    'name' : 'vanila',
+    'name' : 'AE+div maximize',
     'report_every' : 10,
     'keep_try_over' : 0.8,
     'mul_alpha_param' : 1
@@ -323,23 +323,58 @@ import wandb
 wandb.init(project='GAN_mul_alpha(FFHQ)', name=opt.name, config=opt)
 config = wandb.config
 
-
 mse = torch.nn.MSELoss()
+
+import tqdm
+for epoch in tqdm.tqdm(range(config.AEiter), desc="AE"):
+    loss_sum = 0.
+    for i, data in enumerate(dataloader, 0):
+        real_cuda = data[0].to(device)
+        batch_size = real_cuda.size(0)
+        
+        latent_vector = netE(real_cuda)
+        real_latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint = netG(real_latent_4dim)
+        
+        mse_loss = mse(repaint, real_cuda)
+        optimizerE.zero_grad()
+        optimizerG.zero_grad()
+        mse_loss.backward()
+        optimizerE.step()
+        optimizerG.step()
+        
+        loss_sum += mse_loss.item()
+                
+    print(epoch, loss_sum)
+  
+
 fixed_noise = torch.randn(opt.batchSize, nz, 1, 1, device=device)
 
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
+        #update E
+        real_cuda = data[0].to(device)
+        batch_size = real_cuda.size(0)
+        latent_vector = netE(real_cuda)
+        
+        real_latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint = netG(real_latent_4dim)
+  
+        mse_loss = mse(repaint, real_cuda)
+        optimizerE.zero_grad()
+        mse_loss.backward()
+        optimizerE.step()
+        
+        
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         # train with real
         netD.zero_grad()
-        real_cpu = data[0].to(device)
-        batch_size = real_cpu.size(0)
         label = torch.full((batch_size,), real_label,
-                           dtype=real_cpu.dtype, device=device)
+                           dtype=real_cuda.dtype, device=device)
 
-        output = netD(real_cpu)
+        output = netD(real_cuda)
         errD_real = criterion(output, label)
         errD_real.backward()
         D_x = output.mean().item()
@@ -367,15 +402,23 @@ for epoch in range(opt.niter):
         label.fill_(real_label)  # fake labels are real for generator cost
         output = netD(fake)
         
-        #loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
-        
-        errG = criterion(output, label) #- config.lambda_diverse * loss_ds
-        errG.backward()
         D_G_z2 = output.mean().item()
-        optimizerG.step()
+
+        '''
+        #div loss
+        latent_vector = netE(real_cuda)
+        real_latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint_real = netG(real_latent_4dim)
         
-        fake = netG(noise)
-        output = netD(fake)
+        distance_each_real = torch.abs(real_cuda[1:] - real_cuda[:-1])
+        distance_each_repaint = torch.abs(repaint_real[1:] - repaint_real[:-1])
+        distance_loss = mse(distance_each_repaint, distance_each_real)
+        (errG+distance_loss).backward()
+        '''
+        errG = criterion(output, label) - torch.mean(torch.abs(fake - fake2))
+        errG.backward()
+        optimizerG.step()
+
 
         
 
@@ -398,13 +441,13 @@ for epoch in range(opt.niter):
         
         
         print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2,))
         
         print("\t\tFID : %.4f, IS_f : %.4f, P : %.4f, R : %.4f, D : %.4f, C : %.4f" 
               %(metrics['fid'], metrics['fake_is'], metrics['precision'], metrics['recall'], metrics['density'], metrics['coverage']))
         
        
-        vutils.save_image(real_cpu,
+        vutils.save_image(real_cuda,
                 '%s/real_samples.png' % opt.outf,
                 normalize=True)
         fake = netG(fixed_noise)
@@ -427,6 +470,7 @@ for epoch in range(opt.niter):
             "D(real)": D_x,
             "D(G(z))-before D train": D_G_z1,
             "D(G(z))-after D train": D_G_z2,
+            "DivLoss" : torch.mean(torch.abs(fake - fake2)).detach().cpu().numpy(),
             "fid" : metrics['fid'],
             'fake_is':metrics['fake_is'],
             "precision":metrics['precision'],

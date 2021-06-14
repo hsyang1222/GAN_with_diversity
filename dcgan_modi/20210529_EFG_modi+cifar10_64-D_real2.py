@@ -14,21 +14,20 @@ import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
-import torchvision
 import lpips
 
 
 import easydict
 args = easydict.EasyDict({
-    'dataset':'FFHQ',
+    'dataset':'cifar10',
     'dataroot':'../../dataset',
     'workers':4,
-    'batchSize':2048,
-    'imageSize':32,
+    'batchSize':1024,
+    'imageSize':64,
     'nz':100,
     'ngf':64,
     'ndf':64,
-    'niter':110,
+    'niter':200,
     'lr':0.0002,
     'beta1':0.5,
     'cuda':True,
@@ -40,13 +39,13 @@ args = easydict.EasyDict({
     'manualSeed':None,
     'classes':None,
     'outf':'result_image',
-    'AEiter' : 10,
+    'AEiter' : 15,
     'z_add':0.8,
     'lambda_diverse': 0.0,
     'lambda_uniform' : 0,
     'try_div_chance' : 0,
     'device':'cuda:1',
-    'name' : 'vanila',
+    'name' : 'EFG_relu_cifar64(modi epsilon, loss(D(r)=r)*2)',
     'report_every' : 10,
     'keep_try_over' : 0.8,
     'mul_alpha_param' : 1
@@ -105,21 +104,14 @@ elif opt.dataset == 'cifar10':
     dataset = dset.CIFAR10(root=opt.dataroot, #download=True,
                            transform=transforms.Compose([
                                transforms.Resize(opt.imageSize),
+                               transforms.CenterCrop(opt.imageSize),
                                transforms.ToTensor(),
                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                            ]))
     nc=3
 elif opt.dataset == 'celeba':
     nc=3
-elif opt.dataset == 'FFHQ':
-    transformation = transforms.Compose([
-        transforms.Resize(opt.imageSize),
-        transforms.CenterCrop(opt.imageSize),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-    ])
-    dataset = torchvision.datasets.ImageFolder(opt.dataroot + '/FFHQ/', transformation)
-    nc=3
+
 elif opt.dataset == 'mnist':
         dataset = dset.MNIST(root=opt.dataroot, download=True,
                            transform=transforms.Compose([
@@ -161,8 +153,8 @@ class Generator(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            #nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
-            nn.ConvTranspose2d(     nz, ngf * 8, 2, 1, 0, bias=False),
+            nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
+            #nn.ConvTranspose2d(     nz, ngf * 8, 2, 1, 0, bias=False),
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 2 x 2
@@ -219,8 +211,8 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            #nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
-            nn.Conv2d(ndf * 8, 1, 2, 1, 0, bias=False),
+            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            #nn.Conv2d(ndf * 8, 1, 2, 1, 0, bias=False),
             # state size. 1x1x1
             nn.Sigmoid()
         )
@@ -255,8 +247,8 @@ class Encoder(nn.Module):
             nn.BatchNorm2d(ndf * 8),
             nn.ReLU(True),
             # state size. (ndf*8) x 4 x 4
-            #nn.Conv2d(ndf * 8, 100, 4, 1, 0, bias=False),
-            nn.Conv2d(ndf * 8, nz, 2, 1, 0, bias=False),
+            nn.Conv2d(ndf * 8, 100, 4, 1, 0, bias=False),
+            #nn.Conv2d(ndf * 8, nz, 2, 1, 0, bias=False),
             nn.Tanh()
         )
 
@@ -320,43 +312,91 @@ else :
     inception_model_score.model_to('cpu')
     
 import wandb
-wandb.init(project='GAN_mul_alpha(FFHQ)', name=opt.name, config=opt)
+wandb.init(project='GAN_EFG(cifar10_64)', name=opt.name, config=opt)
 config = wandb.config
 
 
 mse = torch.nn.MSELoss()
-fixed_noise = torch.randn(opt.batchSize, nz, 1, 1, device=device)
 
-for epoch in range(opt.niter):
+import tqdm
+for epoch in tqdm.tqdm(range(config.AEiter), desc="AE"):
+    loss_sum = 0.
     for i, data in enumerate(dataloader, 0):
+        real_cuda = data[0].to(device)
+        batch_size = real_cuda.size(0)
+        
+        latent_vector = netE(real_cuda)
+        real_latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint = netG(real_latent_4dim)
+        
+        mse_loss = mse(repaint, real_cuda)
+        optimizerE.zero_grad()
+        optimizerG.zero_grad()
+        mse_loss.backward()
+        optimizerE.step()
+        optimizerG.step()
+        
+        loss_sum += mse_loss.item()
+                
+    print(epoch, loss_sum)
+  
+
+mul_alpha = torch.tensor([-9.0], requires_grad=True, device=device)
+optimizerM = torch.optim.Adam([mul_alpha], lr=0.001) 
+
+fixed_noise = real_latent_4dim.detach()
+
+for epoch in range(opt.niter + 1):
+    for i, data in enumerate(tqdm.tqdm(dataloader, desc='batch')):
+        real_cuda = data[0].to(device)
+        batch_size = real_cuda.size(0)
+        label = torch.full((batch_size,), real_label,
+                           dtype=real_cuda.dtype, device=device)
+        
+        #############################
+        # generate original_feature
+        #############################
+        latent_vector = netE(real_cuda)
+        real_latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint = netG(real_latent_4dim)
+  
+        mse_loss = mse(repaint, real_cuda)
+        optimizerE.zero_grad()
+        mse_loss.backward()
+        optimizerE.step()
+    
+        real_feature = real_latent_4dim.detach()
+        
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         # train with real
-        netD.zero_grad()
-        real_cpu = data[0].to(device)
-        batch_size = real_cpu.size(0)
-        label = torch.full((batch_size,), real_label,
-                           dtype=real_cpu.dtype, device=device)
 
-        output = netD(real_cpu)
-        errD_real = criterion(output, label)
+        netD.zero_grad()
+        output_real = netD(real_cuda)
+        errD_real = criterion(output_real, label) * 2
         errD_real.backward()
-        D_x = output.mean().item()
+        D_x = output_real.mean().item()
 
         # train with fake
         noise = torch.randn(batch_size, nz, 1, 1, device=device)
-        fake = netG(noise)
-        fake2 = netG(noise + config.z_add)
-        
+        sigmoid_mul_alpha = torch.sigmoid(mul_alpha) #입실론
+        real_feature_noised  = (1-sigmoid_mul_alpha)*real_feature + sigmoid_mul_alpha*noise
+
+        repaint_real = netG(real_feature)
+        fake = netG(real_feature_noised.detach())
+
         if config.report_every > 0 and epoch % config.report_every == 0 :
             inception_model_score.put_fake(fake.detach().cpu())
-        
+
         label.fill_(fake_label)
-        output = netD(fake.detach())
-        errD_fake = criterion(output, label)
+        output_repaint_real = netD(repaint_real)
+        output_fake = netD(fake)
+        #errD_fake = sigmoid_mul_alpha*criterion(output_fake, label) + (1-sigmoid_mul_alpha)*criterion(output_repaint_real, label)
+        #errD_fake = (1+sigmoid_mul_alpha)*criterion(output_fake, label) + (1-sigmoid_mul_alpha)*criterion(output_repaint_real, label)
+        errD_fake = criterion(output_fake, label) + criterion(output_repaint_real, label)
+        D_G_z1 = output_fake.mean().item()
         errD_fake.backward()
-        D_G_z1 = output.mean().item()
         errD = errD_real + errD_fake
         optimizerD.step()
 
@@ -365,24 +405,100 @@ for epoch in range(opt.niter):
         ###########################
         netG.zero_grad()
         label.fill_(real_label)  # fake labels are real for generator cost
-        output = netD(fake)
         
-        #loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
+        sigmoid_mul_alpha = torch.sigmoid(mul_alpha)
+        real_feature_noised  = (1-sigmoid_mul_alpha)*real_feature + sigmoid_mul_alpha*noise
+        repaint_real = netG(real_feature)
+        fake = netG(real_feature_noised)
+
+        maximize_diff = torch.mean(torch.abs(repaint_real - fake))
+        optimizerM.zero_grad()
+        (-1*maximize_diff).backward(retain_graph = True)
+        mul_alpha_maxdiff_grad = mul_alpha.grad.detach()
+        optimizerM.step()
         
-        errG = criterion(output, label) #- config.lambda_diverse * loss_ds
-        errG.backward()
-        D_G_z2 = output.mean().item()
+        output_fake = netD(fake)
+        output_repaint_real = netD(repaint_real)
+
+        
+        #minimize_output_diff = torch.mean(torch.relu(output_repaint_real - output_fake))
+        maximize_output_diff = torch.mean((1-sigmoid_mul_alpha)*output_repaint_real.detach() + sigmoid_mul_alpha*output_fake.detach())
+        optimizerM.zero_grad()
+        (-1*maximize_output_diff).backward(retain_graph = True)
+        mul_alpha_minoutdiff_grad = mul_alpha.grad.detach()
+        optimizerM.step()
+        
+        #errG = sigmoid_mul_alpha*criterion(output_fake, label) + (1-sigmoid_mul_alpha)*criterion(output_repaint_real, label)
+        #errG = (1+sigmoid_mul_alpha)*criterion(output_fake, label) + (1-sigmoid_mul_alpha)*criterion(output_repaint_real, label)
+        errG = criterion(output_fake, label) + criterion(output_repaint_real, label)
+        
+        D_G_z2 = output_fake.mean().item()
+        #errG.backward()
+        #optimizerG.step()
+
+        ### div maximize equal to real distance
+        distance_each_real = real_cuda[1:] - real_cuda[:-1]
+        distance_each_repaint = repaint_real[1:] - repaint_real[:-1]
+        distance_loss = mse(distance_each_repaint, distance_each_real)
+        (errG+distance_loss).backward()
         optimizerG.step()
         
-        fake = netG(noise)
-        output = netD(fake)
+        
+        #####train netE
+        latent_vector = netE(real_cuda)
+        real_latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint = netG(real_latent_4dim)
+  
+        mse_loss = mse(repaint, real_cuda)
+        optimizerE.zero_grad()
+        mse_loss.backward()
+        optimizerE.step()
+        
+        
+        '''
+        ### div maximize equal to real distance
+        delta = torch.rand(1, device=device)
+        noiserand = torch.rand(real_cuda.shape, device=device) * 2 - 1
+        noised_real = (1-delta)*real_cuda + delta*noiserand
+        
+        distance_real_from_noised = torch.mean(torch.abs(real_cuda - noised_real), dim=(1,2,3))
+        
+        #real_feature is already generated
+        noised_real_feature = netE(noised_real).view(batch_size,nz,1,1).detach()
+        
+        #repaint_real is already generated
+        repaint_noised_real = netG(noised_real_feature)
 
+        distance_rpreal_from_rpnoised = torch.mean(torch.abs(repaint_real - repaint_noised_real), dim=(1,2,3))
+        distance_loss = mse(distance_rpreal_from_rpnoised, distance_real_from_noised)       
+        
+        (errG+distance_loss).backward()
+        optimizerG.step()
+        '''
         
 
-
     if config.report_every > 0 and epoch % config.report_every == 0:
+        fake = netG(fixed_noise)
+        vutils.save_image(fake.detach(),
+            '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
+            normalize=True)
+        
+        real_feature_noised  = (1-sigmoid_mul_alpha)*fixed_noise + sigmoid_mul_alpha*noise
+        fake2 = netG(real_feature_noised)
+        vutils.save_image(fake2.detach(),
+            '%s/fake2_samples_epoch_%03d.png' % (opt.outf, epoch),
+            normalize=True)
+        
+        fake_np = vutils.make_grid(fake.detach().cpu(), nrow=32).permute(1,2,0).numpy()
+        fake2_np = vutils.make_grid(fake2.detach().cpu(), nrow=32).permute(1,2,0).numpy()
+        
         netG = netG.to('cpu')
         netD = netD.to('cpu')
+        
+        lpips_model.to(device)
+        ex_d = lpips_model.forward(fake, fake2).mean()
+        lpips_model.to('cpu')
+        
         inception_model_score.model_to(device)
 
         #generate fake images info
@@ -392,34 +508,21 @@ for epoch in range(opt.niter):
         inception_model_score.clear_fake()
 
         #onload all GAN model to cpu and offload inception model to gpu
+        inception_model_score.model_to('cpu')
         netG = netG.to(device)
         netD = netD.to(device)
-        inception_model_score.model_to('cpu')
         
         
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
         
-        print("\t\tFID : %.4f, IS_f : %.4f, P : %.4f, R : %.4f, D : %.4f, C : %.4f" 
-              %(metrics['fid'], metrics['fake_is'], metrics['precision'], metrics['recall'], metrics['density'], metrics['coverage']))
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f, maxi-div : %.4f, maxi-D(noise) : %.4f, mul_alph : %.4f'
+          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, \
+             maximize_diff, maximize_output_diff, sigmoid_mul_alpha))
         
-       
-        vutils.save_image(real_cpu,
-                '%s/real_samples.png' % opt.outf,
-                normalize=True)
-        fake = netG(fixed_noise)
-        vutils.save_image(fake.detach(),
-                '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
-                normalize=True)
+        print("\t\tFID : %.4f, IS_f : %.4f, P : %.4f, R : %.4f, D : %.4f, C : %.4f, LPIPS : %.4f"
+              %(metrics['fid'], metrics['fake_is'], metrics['precision'], 
+                metrics['recall'], metrics['density'], metrics['coverage'], ex_d))
         
-        fake2 = netG(fixed_noise + config.z_add)
-        vutils.save_image(fake2.detach(),
-                '%s/fake2_samples_epoch_%03d.png' % (opt.outf, epoch),
-                normalize=True)
-        
-        fake_np = vutils.make_grid(fake.detach().cpu(), nrow=32).permute(1,2,0).numpy()
-        fake2_np = vutils.make_grid(fake2.detach().cpu(), nrow=32).permute(1,2,0).numpy()
-        
+
         wandb.log({
             "epoch" : epoch,
             "Loss_D": errD.item(),
@@ -434,21 +537,21 @@ for epoch in range(opt.niter):
             "density":metrics['density'],
             "coverage":metrics['coverage'],
             "G(z) " : [wandb.Image(fake_np, caption='fixed z image')],
-            "G(z + div_add) " : [wandb.Image(fake2_np, caption='fixed z + 1e-6 image')],
+            "G(z + div_add) " : [wandb.Image(fake2_np, caption='fixed z + %.4f' % mul_alpha)],
+            'LPIPS' : ex_d,
+            'div(repaint ~ noised)' : maximize_diff,
+            'relu(D(repaint)-D(f))' : maximize_output_diff,
+            'mul_alpha' : sigmoid_mul_alpha,
+            'D(repaint)' : torch.mean(output_repaint_real),
+            'D(fake)' : torch.mean(output_fake),
+            'distance_each_real' : distance_each_real,
+            'distance_each_repaint' : distance_each_repaint,
+            'mul_alpha_maxdiff_grad' : mul_alpha_maxdiff_grad,
+            'mul_alpha_minoutdiff_grad':mul_alpha_minoutdiff_grad
         })
+        
+                
+        
 
         if opt.dry_run:
             break
-    # do checkpointing
-    '''
-    torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
-    torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
-    
-    for i, data in enumerate(dataloader, 0):
-        noise = torch.randn(batch_size, nz, 1, 1, device=device)
-        fake = netG(noise)
-        vutils.save_image(fake.detach(),
-                '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
-                normalize=True)
-    '''
- 

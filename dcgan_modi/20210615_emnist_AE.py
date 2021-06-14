@@ -20,10 +20,10 @@ import lpips
 
 import easydict
 args = easydict.EasyDict({
-    'dataset':'FFHQ',
+    'dataset':'emnist',
     'dataroot':'../../dataset',
     'workers':4,
-    'batchSize':2048,
+    'batchSize':1024,
     'imageSize':32,
     'nz':100,
     'ngf':64,
@@ -45,8 +45,8 @@ args = easydict.EasyDict({
     'lambda_diverse': 0.0,
     'lambda_uniform' : 0,
     'try_div_chance' : 0,
-    'device':'cuda:1',
-    'name' : 'vanila',
+    'device':'cuda:3',
+    'name' : 'AE',
     'report_every' : 10,
     'keep_try_over' : 0.8,
     'mul_alpha_param' : 1
@@ -105,6 +105,7 @@ elif opt.dataset == 'cifar10':
     dataset = dset.CIFAR10(root=opt.dataroot, #download=True,
                            transform=transforms.Compose([
                                transforms.Resize(opt.imageSize),
+                               transforms.CenterCrop(opt.imageSize),
                                transforms.ToTensor(),
                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                            ]))
@@ -128,7 +129,16 @@ elif opt.dataset == 'mnist':
                                transforms.Normalize((0.5,), (0.5,)),
                            ]))
         nc=1
-
+elif opt.dataset == 'emnist' : 
+    dataset = dset.EMNIST(root=opt.dataroot, download=True, split='balanced',
+                               transform=transforms.Compose([
+                                   transforms.Grayscale(3),
+                                   transforms.Resize((opt.imageSize,opt.imageSize)),
+                                   transforms.CenterCrop(opt.imageSize), 
+                                   transforms.ToTensor(),
+                                   transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                               ]))
+    nc=3
 elif opt.dataset == 'fake':
     dataset = dset.FakeData(image_size=(3, opt.imageSize, opt.imageSize),
                             transform=transforms.ToTensor())
@@ -320,9 +330,33 @@ else :
     inception_model_score.model_to('cpu')
     
 import wandb
-wandb.init(project='GAN_mul_alpha(FFHQ)', name=opt.name, config=opt)
+wandb.init(project='smeg gan report', name=opt.name, config=opt)
 config = wandb.config
 
+mse = torch.nn.MSELoss()
+
+import tqdm
+for epoch in tqdm.tqdm(range(config.AEiter), desc="AE"):
+    loss_sum = 0.
+    for i, data in enumerate(dataloader, 0):
+        real_cuda = data[0].to(device)
+        batch_size = real_cuda.size(0)
+        
+        latent_vector = netE(real_cuda)
+        real_latent_4dim = latent_vector.view(batch_size,nz,1,1)
+        repaint = netG(real_latent_4dim)
+        
+        mse_loss = mse(repaint, real_cuda)
+        optimizerE.zero_grad()
+        optimizerG.zero_grad()
+        mse_loss.backward()
+        optimizerE.step()
+        optimizerG.step()
+        
+        loss_sum += mse_loss.item()
+                
+    print(epoch, loss_sum)
+  
 
 mse = torch.nn.MSELoss()
 fixed_noise = torch.randn(opt.batchSize, nz, 1, 1, device=device)
@@ -367,7 +401,7 @@ for epoch in range(opt.niter):
         label.fill_(real_label)  # fake labels are real for generator cost
         output = netD(fake)
         
-        #loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
+        loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
         
         errG = criterion(output, label) #- config.lambda_diverse * loss_ds
         errG.backward()
@@ -397,8 +431,8 @@ for epoch in range(opt.niter):
         inception_model_score.model_to('cpu')
         
         
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f, DivLoss : %.4f'
+          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, loss_ds.item()))
         
         print("\t\tFID : %.4f, IS_f : %.4f, P : %.4f, R : %.4f, D : %.4f, C : %.4f" 
               %(metrics['fid'], metrics['fake_is'], metrics['precision'], metrics['recall'], metrics['density'], metrics['coverage']))
@@ -427,6 +461,7 @@ for epoch in range(opt.niter):
             "D(real)": D_x,
             "D(G(z))-before D train": D_G_z1,
             "D(G(z))-after D train": D_G_z2,
+            "DivLoss" : loss_ds.item(),
             "fid" : metrics['fid'],
             'fake_is':metrics['fake_is'],
             "precision":metrics['precision'],

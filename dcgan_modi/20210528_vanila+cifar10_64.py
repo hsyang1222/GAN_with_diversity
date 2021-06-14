@@ -20,15 +20,15 @@ import lpips
 
 import easydict
 args = easydict.EasyDict({
-    'dataset':'FFHQ',
+    'dataset':'cifar10',
     'dataroot':'../../dataset',
     'workers':4,
-    'batchSize':2048,
-    'imageSize':32,
+    'batchSize':1024,
+    'imageSize':64,
     'nz':100,
     'ngf':64,
     'ndf':64,
-    'niter':110,
+    'niter':300,
     'lr':0.0002,
     'beta1':0.5,
     'cuda':True,
@@ -45,7 +45,7 @@ args = easydict.EasyDict({
     'lambda_diverse': 0.0,
     'lambda_uniform' : 0,
     'try_div_chance' : 0,
-    'device':'cuda:1',
+    'device':'cuda:0',
     'name' : 'vanila',
     'report_every' : 10,
     'keep_try_over' : 0.8,
@@ -105,6 +105,7 @@ elif opt.dataset == 'cifar10':
     dataset = dset.CIFAR10(root=opt.dataroot, #download=True,
                            transform=transforms.Compose([
                                transforms.Resize(opt.imageSize),
+                               transforms.CenterCrop(opt.imageSize),
                                transforms.ToTensor(),
                                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                            ]))
@@ -161,8 +162,8 @@ class Generator(nn.Module):
         self.ngpu = ngpu
         self.main = nn.Sequential(
             # input is Z, going into a convolution
-            #nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
-            nn.ConvTranspose2d(     nz, ngf * 8, 2, 1, 0, bias=False),
+            nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False), #64size
+            #nn.ConvTranspose2d(     nz, ngf * 8, 2, 1, 0, bias=False), #32size
             nn.BatchNorm2d(ngf * 8),
             nn.ReLU(True),
             # state size. (ngf*8) x 2 x 2
@@ -219,8 +220,8 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(ndf * 8),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf*8) x 4 x 4
-            #nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
-            nn.Conv2d(ndf * 8, 1, 2, 1, 0, bias=False),
+            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False), #64size
+            #nn.Conv2d(ndf * 8, 1, 2, 1, 0, bias=False), #32size
             # state size. 1x1x1
             nn.Sigmoid()
         )
@@ -255,8 +256,8 @@ class Encoder(nn.Module):
             nn.BatchNorm2d(ndf * 8),
             nn.ReLU(True),
             # state size. (ndf*8) x 4 x 4
-            #nn.Conv2d(ndf * 8, 100, 4, 1, 0, bias=False),
-            nn.Conv2d(ndf * 8, nz, 2, 1, 0, bias=False),
+            nn.Conv2d(ndf * 8, 100, 4, 1, 0, bias=False), #64size
+            #nn.Conv2d(ndf * 8, nz, 2, 1, 0, bias=False), #32size
             nn.Tanh()
         )
 
@@ -320,7 +321,7 @@ else :
     inception_model_score.model_to('cpu')
     
 import wandb
-wandb.init(project='GAN_mul_alpha(FFHQ)', name=opt.name, config=opt)
+wandb.init(project='GAN_EFG(cifar10_64)', name=opt.name, config=opt)
 config = wandb.config
 
 
@@ -367,9 +368,9 @@ for epoch in range(opt.niter):
         label.fill_(real_label)  # fake labels are real for generator cost
         output = netD(fake)
         
-        #loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
+        loss_ds = torch.mean(torch.abs(fake.detach() - fake2.detach()))
         
-        errG = criterion(output, label) #- config.lambda_diverse * loss_ds
+        errG = criterion(output, label) - config.lambda_diverse * loss_ds
         errG.backward()
         D_G_z2 = output.mean().item()
         optimizerG.step()
@@ -397,8 +398,8 @@ for epoch in range(opt.niter):
         inception_model_score.model_to('cpu')
         
         
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f, DivLoss : %.4f'
+          % (epoch, opt.niter, i, len(dataloader), errD.item(), errG.item(), D_x, D_G_z1, D_G_z2, loss_ds.item()))
         
         print("\t\tFID : %.4f, IS_f : %.4f, P : %.4f, R : %.4f, D : %.4f, C : %.4f" 
               %(metrics['fid'], metrics['fake_is'], metrics['precision'], metrics['recall'], metrics['density'], metrics['coverage']))
@@ -427,6 +428,7 @@ for epoch in range(opt.niter):
             "D(real)": D_x,
             "D(G(z))-before D train": D_G_z1,
             "D(G(z))-after D train": D_G_z2,
+            "DivLoss" : loss_ds.item(),
             "fid" : metrics['fid'],
             'fake_is':metrics['fake_is'],
             "precision":metrics['precision'],
